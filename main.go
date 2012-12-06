@@ -8,52 +8,75 @@ import (
 	"strings"
 )
 
+/*	Server Struct
+*	Basic server data with Url and Status
+*/
 type Server struct {
 	Url		string
 	Status	string
 }
 
-var serv Server
-var ch chan Server
+/* Server map type which holds the server struct */
+type serverMap map[string] Server
 
-func ping(s * Server) {
-	resp, err := http.Get(s.Url)
-	if err != nil {
-		log.Print(err)
-	} else {
-		s.Status = resp.Status
+/* Global package level server map */
+var sMap serverMap
+
+/* Ping given servers in the server map*/
+func ping() {
+	for _, v := range sMap {
+		go func () {
+			log.Print("Hitting..." + v.Url)
+			resp, err := http.Get(v.Url)
+			if err != nil {
+				log.Print(err)
+			} else {
+				v.Url = resp.Status
+			}
+			log.Print("Hit server " + v.Status)
+		} ()
 	}
-	log.Print("Hit server " + s.Status)
 }
 
-func start(s *Server) {
+/* Start the background thread to ping server */
+func start() {
 	go func () {
 		for true {
-			ping(s)
+			log.Print("Starting Ping")
+			ping()
 			time.Sleep(time.Minute)
 		}
 	} ()
 }
 
+/* Set up the monitor thread */
 func monitor() {
+	serv := new(Server)
 	serv.Url = "http://www.google.com"
 	serv.Status = "not hit"
-	ch = make(chan Server)
-	start(&serv)
+	sMap = make(serverMap)
+	sMap[serv.Url] = *serv
+	start()
 }
 
+/*Handles the response to "/" */
 func index(res http.ResponseWriter, req *http.Request) {
-	log.Print("Status " + serv.Status)
 	content, err := ioutil.ReadFile("index.html")
 	if err != nil {
-		res.Write([]byte("Status " + serv.Status))
+		log.Fatal("index.html not found")
 	} else {
-		s_body := "<div class=\"server\">" + serv.Url + "</div><div class=\"server-status\">"+serv.Status+"</div>"
+		s_body := ""
+		for _,v := range sMap {
+			s_body += "<div class=\"server\">" + v.Url + "</div>"
+			s_body += "<div class=\"server-status\">"+v.Status+"</div>"
+		}
+		
 		s_content := strings.Replace(string(content), "<contents>", s_body, 1)
 		res.Write([]byte(s_content))		
 	}
 }
 
+/*Start of the program */
 func main() {
 	monitor()
 	log.Print("Finished starting the monitor process")
