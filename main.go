@@ -61,6 +61,7 @@ func monitor() {
 
 /*Handles the response to "/" */
 func index(res http.ResponseWriter, req *http.Request) {
+	log.Print(req)
 	content, err := ioutil.ReadFile("index.html")
 	if err != nil {
 		log.Fatal("index.html not found")
