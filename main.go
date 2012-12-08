@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -25,17 +26,15 @@ var sMap serverMap
 /* Ping given servers in the server map*/
 func ping() {
 	for k, v := range sMap {
-		go func() {
-			log.Print("Hitting..." + v.Url)
-			resp, err := http.Get(v.Url)
-			if err != nil {
-				log.Print(err)
-			} else {
-				v.Status = resp.Status
-				sMap[k] = v
-			}
-			log.Print("Hit server " + v.Status)
-		}()
+		log.Print("Hitting..." + v.Url)
+		resp, err := http.Get(v.Url)
+		if err != nil {
+			log.Print(err)
+		} else {
+			v.Status = resp.Status
+			sMap[k] = v
+		}
+		log.Print("Hit server " + v.Status)
 	}
 }
 
@@ -52,11 +51,21 @@ func start() {
 
 /* Set up the monitor thread */
 func monitor() {
-	serv := new(Server)
-	serv.Url = "http://www.google.com"
-	serv.Status = "not hit"
 	sMap = make(serverMap)
-	sMap[serv.Url] = *serv
+	var servers []Server
+	content, err := ioutil.ReadFile("servers.json")
+	if err != nil {
+		log.Fatal("Unable to find servers.json")
+	}
+	err = json.Unmarshal(content, &servers)
+	if err != nil {
+		log.Fatal("JSON not formatted correctly, real err: ", err)
+	}
+	log.Print(servers)
+	for i := 0; i < len(servers); i++ {
+		sMap[servers[i].Url] = servers[i]
+	}
+	print(sMap)
 	start()
 }
 
