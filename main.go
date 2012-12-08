@@ -26,16 +26,21 @@ var sMap serverMap
 /* Ping given servers in the server map*/
 func ping() {
 	for k, v := range sMap {
-		log.Print("Hitting..." + v.Url)
-		resp, err := http.Get(v.Url)
-		if err != nil {
-			log.Print(err)
-		} else {
-			v.Status = resp.Status
-			sMap[k] = v
-		}
-		log.Print("Hit server " + v.Status)
+		go hit(k, v)
 	}
+}
+
+/*Seperate thread per server ping*/
+func hit(k string, v Server) {
+	log.Print("Hitting..." + v.Url)
+	resp, err := http.Get(v.Url)
+	if err != nil {
+		log.Print(err)
+	} else {
+		v.Status = resp.Status
+		sMap[k] = v
+	}
+	log.Print("Hit server " + v.Status)
 }
 
 /* Start the background thread to ping server */
@@ -62,7 +67,7 @@ func monitor() {
 		log.Fatal("JSON not formatted correctly, real err: ", err)
 	}
 	log.Print(servers)
-	for i := 0; i < len(servers); i++ {
+	for i := range servers {
 		sMap[servers[i].Url] = servers[i]
 	}
 	print(sMap)
