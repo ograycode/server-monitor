@@ -26,21 +26,18 @@ var sMap serverMap
 /* Ping given servers in the server map*/
 func ping() {
 	for k, v := range sMap {
-		go hit(k, v)
+		go func(k string, v Server) {
+			log.Print("Hitting..." + v.Url)
+			resp, err := http.Get(v.Url)
+			if err != nil {
+				log.Print(err)
+			} else {
+				v.Status = resp.Status
+				sMap[k] = v
+			}
+			log.Print("Hit server " + v.Status)
+		}(k, v)
 	}
-}
-
-/*Seperate thread per server ping*/
-func hit(k string, v Server) {
-	log.Print("Hitting..." + v.Url)
-	resp, err := http.Get(v.Url)
-	if err != nil {
-		log.Print(err)
-	} else {
-		v.Status = resp.Status
-		sMap[k] = v
-	}
-	log.Print("Hit server " + v.Status)
 }
 
 /* Start the background thread to ping server */
@@ -60,7 +57,7 @@ func monitor() {
 	var servers []Server
 	content, err := ioutil.ReadFile("servers.json")
 	if err != nil {
-		log.Fatal("Unable to find servers.json")
+		log.Fatal("Unable to find servers.json ", err)
 	}
 	err = json.Unmarshal(content, &servers)
 	if err != nil {
@@ -70,12 +67,12 @@ func monitor() {
 	for i := range servers {
 		sMap[servers[i].Url] = servers[i]
 	}
-	print(sMap)
+	log.Print(sMap)
 	start()
 }
 
-/*Handles the response to "/" */
-func index(res http.ResponseWriter, req *http.Request) {
+/*Handles all server requests and routes to the correct controller */
+func router(res http.ResponseWriter, req *http.Request) {
 
 	log.Print("Method: " + req.Method)
 	log.Print("Url:" + req.URL.Path)
@@ -92,6 +89,7 @@ func index(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+//Processes the index request as forwarded by the router
 func processIndexRequest(res http.ResponseWriter, req *http.Request) {
 	content, err := ioutil.ReadFile("index.html")
 	if err != nil {
@@ -99,15 +97,16 @@ func processIndexRequest(res http.ResponseWriter, req *http.Request) {
 	} else {
 		s_body := ""
 		for _, v := range sMap {
-			s_body += "<div class=\"server\">" + v.Url + "</div>"
-			s_body += "<div class=\"server-status\">" + v.Status + "</div>"
+			s_body += "<div>"
+			s_body += "<span class=\"server\">" + v.Url + "</span>"
+			s_body += "<span class=\"server-status\">" + v.Status + "</span>"
+			s_body += "</div>"
 		}
-
-		s_content := strings.Replace(string(content), "<contents>", s_body, 1)
-		res.Write([]byte(s_content))
+		res.Write([]byte(strings.Replace(string(content), "<contents>", s_body, 1)))
 	}
 }
 
+//Proceses the favicon.ico request as forwarded by the controller
 func processFaviconRequest(res http.ResponseWriter, req *http.Request) {
 	content, err := ioutil.ReadFile("favicon.ico")
 	if err != nil {
@@ -120,6 +119,6 @@ func processFaviconRequest(res http.ResponseWriter, req *http.Request) {
 func main() {
 	monitor()
 	log.Print("Finished starting the monitor process")
-	http.HandleFunc("/", index)
+	http.HandleFunc("/", router)
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }
