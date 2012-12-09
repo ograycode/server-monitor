@@ -80,6 +80,19 @@ func index(res http.ResponseWriter, req *http.Request) {
 	log.Print("Method: " + req.Method)
 	log.Print("Url:" + req.URL.Path)
 
+	switch {
+	case req.URL.Path == "/", req.URL.Path == "/index":
+		processIndexRequest(res, req)
+	case req.URL.Path == "/favicon.ico":
+		processFaviconRequest(res, req)
+	case strings.Contains(req.URL.Path, "/public"):
+		http.Redirect(res, req, "/", http.StatusFound)
+	default:
+		http.Redirect(res, req, "/", http.StatusFound)
+	}
+}
+
+func processIndexRequest(res http.ResponseWriter, req *http.Request) {
 	content, err := ioutil.ReadFile("index.html")
 	if err != nil {
 		log.Fatal("index.html not found")
@@ -93,6 +106,14 @@ func index(res http.ResponseWriter, req *http.Request) {
 		s_content := strings.Replace(string(content), "<contents>", s_body, 1)
 		res.Write([]byte(s_content))
 	}
+}
+
+func processFaviconRequest(res http.ResponseWriter, req *http.Request) {
+	content, err := ioutil.ReadFile("favicon.ico")
+	if err != nil {
+		log.Fatal("favicon.ico not found ", err)
+	}
+	res.Write(content)
 }
 
 /*Start of the program */
