@@ -31,10 +31,11 @@ func ping() {
 			resp, err := http.Get(v.Url)
 			if err != nil {
 				log.Print(err)
+				v.Status = err.Error()
 			} else {
 				v.Status = resp.Status
-				sMap[k] = v
 			}
+			sMap[k] = v
 			log.Print("Hit server " + v.Status)
 		}(k, v)
 	}
@@ -83,10 +84,19 @@ func router(res http.ResponseWriter, req *http.Request) {
 	case req.URL.Path == "/favicon.ico":
 		processFaviconRequest(res, req)
 	case strings.Contains(req.URL.Path, "/public"):
-		http.Redirect(res, req, "/", http.StatusFound)
+		processPublicRequest(res, req)
 	default:
 		http.Redirect(res, req, "/", http.StatusFound)
 	}
+}
+
+func processPublicRequest(res http.ResponseWriter, req *http.Request) {
+	content, err := ioutil.ReadFile(req.URL.Path[1:])
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	res.Write(content)
 }
 
 //Processes the index request as forwarded by the router
